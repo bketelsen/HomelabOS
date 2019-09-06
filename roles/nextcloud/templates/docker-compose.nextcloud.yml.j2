@@ -1,0 +1,62 @@
+---
+version: '3'
+
+networks:
+  traefik_network:
+    external:
+      name: homelabos_traefik
+
+services:
+  nextcloud:
+    image: hoellen/nextcloud:16.0
+    networks:
+      - traefik_network
+    depends_on:
+      - nextcloud-db
+    environment:
+      - UID={{ uid }}
+      - GID={{ gid }}
+      - UPLOAD_MAX_SIZE=10G
+      - APC_SHM_SIZE=128M
+      - OPCACHE_MEM_SIZE=128
+      - CRON_PERIOD=15m
+      - TZ=America/NewYork
+      - DOMAIN=localhost
+      - DB_TYPE=mysql
+      - DB_NAME=nextcloud
+      - DB_USER=nextcloud
+      - DB_PASSWORD="{{lookup('password', './settings/passwords/nextcloud_db_password chars=digits')}}"
+      - DB_HOST=nextcloud-db
+    volumes:
+      - /var/homelabos/nextcloud/config:/config
+      - {{ storage_dir }}/Documents/NextCloud:/data
+      - /var/homelabos/nextcloud/apps:/apps2
+      - /var/homelabos/nextcloud/themes:/nextcloud/themes
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=homelabos_traefik"
+      - "traefik.http.frontend.rule=Host:nextcloud.{{ domain }}"
+      - "traefik.http.frontend.headers.customFrameOptionsValue=ALLOW-FROM http://{{ domain }}"
+      - "traefik.http.frontend.headers.customFrameOptionsValue=ALLOW-FROM https://{{ domain }}"
+      - "traefik.http.protocol=http"
+      - "traefik.http.port=8888"
+{% if enable_tor %}
+      - "traefik.tor.frontend.rule=Host:nextcloud.{{ tor_domain }}"
+      - "traefik.tor.protocol=http"
+      - "traefik.tor.port=8888"
+{% endif %}
+
+  # If using MySQL
+  nextcloud-db:
+    image: mariadb:10.4
+    networks:
+      - traefik_network
+    volumes:
+      - /var/homelabos/nextcloud_db:/var/lib/mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD="{{lookup('password', './settings/passwords/nextcloud_db_root_password chars=digits')}}"
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASSWORD="{{lookup('password', './settings/passwords/nextcloud_db_password chars=digits')}}"
+

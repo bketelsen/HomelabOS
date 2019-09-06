@@ -1,0 +1,54 @@
+---
+# Initial setup so Ansible can actually work.
+- name: Install python (required by Ansible).
+  gather_facts: "False"
+  hosts: all
+  become: "True"
+  become_method: sudo
+  any_errors_fatal: true
+  pre_tasks:
+    - name: "Update Apt Cache"
+      raw: sudo apt-get update
+    - name: "Install Python"
+      raw: sudo apt-get -y install python-simplejson
+
+# Configure a TOR hidden service for remote access without a public IP
+- name: "Setup TOR"
+  tags: tor
+  hosts: all
+  become: true
+  become_method: sudo
+  roles:
+    - role: tor
+      when: enable_tor
+
+# Configure the server itself
+- name: configure HomelabOS
+  hosts: all
+  become: true
+  gather_facts: "True"
+  tags: common
+  roles:
+    # Install Docker, configure basic server settings
+    - homelabos_common
+
+- name: "Deploy Bastion Host with Wireguard"
+  hosts: all
+  become: true
+  become_method: sudo
+  tags: bastion
+  tasks:
+    - include_role:
+        name: homelabos_wireguard
+      when: bastion.enabled == True
+
+# Install and configure HomelabOS services
+- name: Install and configure HomelabOS services
+  hosts: homelabos
+  become: true
+  gather_facts: "True"
+  tags:
+    - homelabos
+    - deploy
+  roles:
+    - homelabos_deploy

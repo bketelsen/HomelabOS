@@ -1,0 +1,32 @@
+---
+version: '3'
+
+networks:
+  traefik_network:
+    external:
+      name: homelabos_traefik
+
+services:
+  homedash:
+    image: gonzague/homedash
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/homelabos/homedash:/data
+    environment:
+      - SALT=ivPWITRH5KPJE5oQQAgxuiCgIxBez6MF6idGmasWTUjZzhEx3iAtnI9TSAo6HAevApRoujC5
+    restart: unless-stopped
+    networks:
+      - traefik_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=homelabos_traefik"
+      - "traefik.http.frontend.rule=Host:homedash.{{ domain }}"
+      - "traefik.http.protocol=http"
+      - "traefik.http.port=4567"
+      - "traefik.http.frontend.headers.customFrameOptionsValue=ALLOW-FROM http://{{ domain }}"
+      - "traefik.http.frontend.headers.customFrameOptionsValue=ALLOW-FROM https://{{ domain }}"
+{% if enable_tor %}
+      - "traefik.tor.frontend.rule=Host:homedash.{{ tor_domain }}"
+      - "traefik.tor.protocol=http"
+      - "traefik.tor.port=4567"
+{% endif %}

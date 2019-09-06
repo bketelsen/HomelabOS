@@ -1,0 +1,37 @@
+---
+version: '3'
+
+networks:
+  traefik_network:
+    external:
+      name: homelabos_traefik
+
+services:
+  # Movie Downloader
+  radarr:
+    image: linuxserver/radarr
+    networks:
+      - traefik_network
+    restart: unless-stopped
+    environment:
+      - PGID=0
+      - PUID=0
+      - TZ={{ common_timezone }}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/homelabos/radarr/config:/config
+      - {{ storage_dir }}/Movies:/movies
+      - {{ storage_dir }}/Downloads/complete/movies:/downloads
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=homelabos_traefik"
+      - "traefik.http.frontend.rule=Host:radarr.{{ domain }}"
+      - "traefik.http.protocol=http"
+      - "traefik.http.port=7878"
+      - "traefik.http.frontend.headers.customFrameOptionsValue=ALLOW-FROM http://{{ domain }}"
+      - "traefik.http.frontend.headers.customFrameOptionsValue=ALLOW-FROM https://{{ domain }}"
+{% if enable_tor %}
+      - "traefik.tor.frontend.rule=Host:radarr.{{ tor_domain }}"
+      - "traefik.tor.protocol=http"
+      - "traefik.tor.port=7878"
+{% endif %}

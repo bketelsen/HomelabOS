@@ -1,0 +1,37 @@
+---
+version: '3'
+
+networks:
+  traefik_network:
+    external:
+      name: homelabos_traefik
+
+services:
+  # S3 Storage for Backups via Restic
+  minio:
+    image: minio/minio
+    networks:
+      - traefik_network
+    restart: unless-stopped
+    command: server /data
+    volumes:
+      - {{ storage_dir }}/Backups/minio:/data
+      - /var/homelabos/minio/config:/root/.minio/
+    ports:
+      - 9110:9000
+    environment:
+      MINIO_ACCESS_KEY: {{minio_access_key}}
+      MINIO_SECRET_KEY: {{minio_secret_access_key}}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=homelabos_traefik"
+      - "traefik.http.frontend.rule=Host:minio.{{ domain }}"
+      - "traefik.http.protocol=http"
+      - "traefik.http.port=9000"
+      - "traefik.http.frontend.headers.customFrameOptionsValue=ALLOW-FROM http://{{ domain }}"
+      - "traefik.http.frontend.headers.customFrameOptionsValue=ALLOW-FROM https://{{ domain }}"
+{% if enable_tor %}
+      - "traefik.tor.frontend.rule=Host:minio.{{ tor_domain }}"
+      - "traefik.tor.protocol=http"
+      - "traefik.tor.port=9000"
+{% endif %}

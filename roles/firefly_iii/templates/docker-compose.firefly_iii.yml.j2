@@ -1,0 +1,52 @@
+---
+version: '3'
+
+networks:
+  traefik_network:
+    external:
+      name: homelabos_traefik
+
+services:
+  # Financial Tracker
+  firefly_iii_app:
+    restart: unless-stopped
+    environment:
+      - DB_HOST=firefly_iii_db
+      - DB_DATABASE=firefly_db
+      - DB_USERNAME=firefly_db
+      - DB_PASSWORD={{ lookup('password', './settings/passwords/firefly_db_password chars=digits') }}
+      - APP_KEY={{ lookup('password', './settings/passwords/firefly_app_key chars=digits length=31') }}
+      - APP_ENV=local
+      - APP_URL=https://money.{{ domain }}
+      - TZ={{ common_timezone }}
+      - ServerName=money.{{ domain }}
+    image: jc5x/firefly-iii
+    networks:
+      - traefik_network
+    volumes:
+      - /var/homelabos/firefly/export:/var/www/firefly-iii/storage/export
+      - /var/homelabos/firefly/upload:/var/www/firefly-iii/storage/upload
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=homelabos_traefik"
+      - "traefik.http.frontend.rule=Host:money.{{ domain }}"
+      - "traefik.http.protocol=http"
+      - "traefik.http.port=80"
+{% if enable_tor %}
+      - "traefik.tor.frontend.rule=Host:money.{{ tor_domain }}"
+      - "traefik.tor.protocol=http"
+      - "traefik.tor.port=80"
+{% endif %}
+
+  firefly_iii_db:
+    restart: unless-stopped
+    networks:
+      - traefik_network
+    environment:
+      - MYSQL_DATABASE=firefly_db
+      - MYSQL_USER=firefly_db
+      - MYSQL_PASSWORD="{{lookup('password', './settings/passwords/firefly_db_password chars=digits')}}"
+      - MYSQL_RANDOM_ROOT_PASSWORD=yes
+    image: mariadb
+    volumes:
+      - /var/homelabos/firefly/db:/var/lib/mysql

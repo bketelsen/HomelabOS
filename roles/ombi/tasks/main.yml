@@ -1,0 +1,35 @@
+---
+- name: Make ombi directory.
+  file:
+    path: "/var/homelabos/ombi"
+    state: directory
+
+- name: Get UID
+  command: id -u
+  register: uid_output
+  become: false
+
+- name: Get GID
+  command: id -g
+  register: gid_output
+  become: false
+
+- name: Copy ombi docker-compose.yml file into place.
+  template:
+    src: docker-compose.ombi.yml.j2
+    dest: /var/homelabos/ombi/docker-compose.ombi.yml
+  vars:
+    uid: "{{ uid_output.stdout }}"
+    gid: "{{ gid_output.stdout }}"
+
+- name: Configure ombi systemd service.
+  template:
+    src: service.j2
+    dest: /etc/systemd/system/ombi.service
+
+- name: Start ombi
+  systemd:
+    name: ombi
+    enabled: "yes"
+    daemon-reload: "yes"
+    state: started

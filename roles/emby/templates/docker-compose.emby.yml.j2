@@ -1,0 +1,32 @@
+---
+version: '3'
+
+networks:
+  traefik_network:
+    external:
+      name: homelabos_traefik
+
+services:
+ # Media Server
+  emby:
+    image: emby/embyserver:latest
+    restart: unless-stopped
+    networks:
+      - traefik_network
+    volumes:
+      - /var/homelabos/emby:/config
+      - {{ storage_dir }}/Music:/mnt/media/Music
+      - {{ storage_dir }}/Movies:/mnt/media/Movies
+      - {{ storage_dir }}/TV:/mnt/media/TV
+      - {{ storage_dir }}/temp/transcode:/config/transcoding-temp
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=homelabos_traefik"
+      - "traefik.http.frontend.rule=Host:emby.{{ domain }}"
+      - "traefik.http.protocol=http"
+      - "traefik.http.port=8096"
+{% if enable_tor %}
+      - "traefik.tor.frontend.rule=Host:emby.{{ tor_domain }}"
+      - "traefik.tor.protocol=http"
+      - "traefik.tor.port=8096"
+{% endif %}

@@ -1,0 +1,23 @@
+---
+- name: Make firefly_iii directory.
+  file:
+    path: "/var/homelabos/firefly_iii"
+    state: directory
+
+- name: Copy firefly_iii docker-compose.yml file into place.
+  template:
+    src: docker-compose.firefly_iii.yml.j2
+    dest: /var/homelabos/firefly_iii/docker-compose.firefly_iii.yml
+
+
+- name: Configure firefly_iii systemd service.
+  template:
+    src: service.j2
+    dest: /etc/systemd/system/firefly_iii.service
+
+- name: Start firefly_iii
+  systemd:
+    name: firefly_iii
+    enabled: "yes"
+    daemon-reload: "yes"
+    state: started

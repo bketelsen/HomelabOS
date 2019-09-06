@@ -1,0 +1,41 @@
+---
+version: '3'
+
+networks:
+  traefik_network:
+    external:
+      name: homelabos_traefik
+
+services:
+  # RSS Reader
+  miniflux:
+    image: miniflux/miniflux:2.0.11
+    networks:
+      - traefik_network
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgres://miniflux:"{{lookup('password', './settings/passwords/miniflux_db_password chars=digits')}}"@miniflux_db/miniflux?sslmode=disable
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=homelabos_traefik"
+      - "traefik.http.frontend.rule=Host:miniflux.{{ domain }}"
+      - "traefik.http.frontend.headers.customFrameOptionsValue=ALLOW-FROM http://{{ domain }}"
+      - "traefik.http.frontend.headers.customFrameOptionsValue=ALLOW-FROM https://{{ domain }}"
+      - "traefik.http.protocol=http"
+      - "traefik.http.port=8080"
+{% if enable_tor %}
+      - "traefik.tor.frontend.rule=Host:miniflux.{{ tor_domain }}"
+      - "traefik.tor.protocol=http"
+      - "traefik.tor.port=80"
+{% endif %}
+
+  miniflux_db:
+    image: postgres:10.1
+    networks:
+      - traefik_network
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=miniflux
+      - POSTGRES_PASSWORD="{{lookup('password', './settings/passwords/miniflux_db_password chars=digits')}}"
+    volumes:
+      - /var/homelabos/miniflux/db:/var/lib/postgresql/data
